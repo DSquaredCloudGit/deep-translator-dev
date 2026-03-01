@@ -11,6 +11,8 @@ TENCENT_SECRET_ID_ENV_VAR = "TENCENT_SECRET_ID"
 TENCENT_SECRET_KEY_ENV_VAR = "TENCENT_SECRET_KEY"
 BAIDU_APPID_ENV_VAR = "BAIDU_APPID"
 BAIDU_APPKEY_ENV_VAR = "BAIDU_APPKEY"
+GEMINI_ENV_VAR = "GEMINI_API_KEY"
+ANTHROPIC_ENV_VAR = "ANTHROPIC_API_KEY"
 
 
 BASE_URLS = {
@@ -663,4 +665,82 @@ BAIDU_LANGUAGE_TO_CODE = {
     "thai": "th",
     "vietnamese": "vie",
     "yueyu": "yue",
+}
+
+# Helsinki-NLP OPUS-MT supported languages (ISO 639-1 codes)
+OPUS_MT_LANGUAGES_TO_CODES = {
+    "afrikaans": "af",
+    "arabic": "ar",
+    "azerbaijani": "az",
+    "bengali": "bn",
+    "bulgarian": "bg",
+    "catalan": "ca",
+    "chinese": "zh",
+    "czech": "cs",
+    "danish": "da",
+    "dutch": "nl",
+    "english": "en",
+    "esperanto": "eo",
+    "estonian": "et",
+    "finnish": "fi",
+    "french": "fr",
+    "galician": "gl",
+    "german": "de",
+    "greek": "el",
+    "hebrew": "he",
+    "hindi": "hi",
+    "hungarian": "hu",
+    "icelandic": "is",
+    "indonesian": "id",
+    "irish": "ga",
+    "italian": "it",
+    "japanese": "ja",
+    "kazakh": "kk",
+    "korean": "ko",
+    "latvian": "lv",
+    "lithuanian": "lt",
+    "macedonian": "mk",
+    "malay": "ms",
+    "maltese": "mt",
+    "marathi": "mr",
+    "mongolian": "mn",
+    "nepali": "ne",
+    "norwegian": "no",
+    "persian": "fa",
+    "polish": "pl",
+    "portuguese": "pt",
+    "romanian": "ro",
+    "russian": "ru",
+    "serbian": "sr",
+    "sinhala": "si",
+    "slovak": "sk",
+    "slovenian": "sl",
+    "spanish": "es",
+    "swahili": "sw",
+    "swedish": "sv",
+    "tagalog": "tl",
+    "tamil": "ta",
+    "telugu": "te",
+    "thai": "th",
+    "turkish": "tr",
+    "ukrainian": "uk",
+    "urdu": "ur",
+    "vietnamese": "vi",
+    "welsh": "cy",
+}
+
+# OPUS-MT multi-target language groups
+# These map group identifiers used in OPUS-MT model names
+# to the individual language codes they cover
+OPUS_MT_MULTI_TARGET_GROUPS = {
+    "ROMANCE": ["fr", "es", "it", "pt", "ro", "ca", "gl", "oc", "la"],
+    "CELTIC": ["cy", "ga", "gd", "br", "kw"],
+    "NORTH_EU": ["da", "no", "sv", "is", "fi"],
+    "SCANDINAVIAN": ["da", "no", "sv"],
+    "BALTIC": ["lv", "lt"],
+    "SLAVIC": ["ru", "uk", "pl", "cs", "sk", "bg", "sr", "hr", "sl", "mk"],
+    "GERMANIC": ["de", "nl", "af", "da", "no", "sv", "is"],
+    "SEMITIC": ["ar", "he", "mt"],
+    "INDIC": ["hi", "bn", "mr", "ne", "ta", "te", "ur", "si"],
+    "CJK": ["zh", "ja", "ko"],
 }

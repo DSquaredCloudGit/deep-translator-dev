@@ -23,8 +23,19 @@ class CLI(object):
                 f"Translator {self.args.translator} is not supported."
                 f"Supported translators: {list(self.translators_dict.keys())}"
             )
+        # Build translator kwargs
+        translator_kwargs = {}
+        if self.args.translator == "eunoia":
+            if self.args.model_cache_dir:
+                translator_kwargs["model_cache_dir"] = (
+                    self.args.model_cache_dir
+                )
+            translator_kwargs["quantization"] = self.args.quantization
+
         self.translator = translator_class(
-            source=self.args.source, target=self.args.target
+            source=self.args.source,
+            target=self.args.target,
+            **translator_kwargs,
         )
 
     def translate(self) -> None:
@@ -87,6 +98,19 @@ class CLI(object):
             action="store_true",
             help="all the languages available with the translator"
             "Run the command deep_translator -trans <translator service> -lang",
+        )
+        parser.add_argument(
+            "--model-cache-dir",
+            type=str,
+            default=None,
+            help="directory to cache ONNX models (for eunoia translator)",
+        )
+        parser.add_argument(
+            "--quantization",
+            type=str,
+            default="int8",
+            choices=["int8", "int4", "none"],
+            help="ONNX quantization level (for eunoia translator)",
         )
         parsed_args = (
             parser.parse_args(self.custom_args)

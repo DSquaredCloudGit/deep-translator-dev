@@ -105,3 +105,6 @@ ENV/
 
 # IDE settings
 .vscode/
+
+# Local AI Models
+.ai_models/

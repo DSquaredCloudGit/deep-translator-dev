@@ -206,3 +206,24 @@ class BaiduAPIerror(Exception):
 
     def __str__(self):
         return "{}: {}".format(self.message, self.api_message)
+
+
+class ModelDownloadException(BaseError):
+    """
+    exception thrown if the ONNX model download fails
+    """
+
+    def __init__(self, val, message="Failed to download or convert the translation model"):
+        super().__init__(val, message)
+
+
+class ModelNotAvailableException(BaseError):
+    """
+    exception thrown if no ONNX model is available for the requested language pair
+    """
+
+    def __init__(self, val, message="No translation model available for the requested language pair"):
+        super().__init__(val, message)
+
+
+
