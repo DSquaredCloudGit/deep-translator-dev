@@ -3,24 +3,23 @@
 __copyright__ = "Copyright (C) 2020 Nidhal Baccouri"
 
 import argparse
-from typing import Optional
 
 from deep_translator.engines import __engines__
 
 
-class CLI(object):
+class CLI:
     translators_dict = __engines__
     translator = None
 
-    def __init__(self, custom_args: Optional[list] = None):
+    def __init__(self, custom_args: list | None = None):
         self.custom_args = custom_args
         self.args = self.parse_args()
         translator_class = self.translators_dict.get(
             self.args.translator, None
         )
         if not translator_class:
-            raise Exception(
-                f"Translator {self.args.translator} is not supported."
+            raise ValueError(
+                f"Translator {self.args.translator} is not supported. "
                 f"Supported translators: {list(self.translators_dict.keys())}"
             )
         # Build translator kwargs

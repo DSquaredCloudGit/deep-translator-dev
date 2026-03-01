@@ -1,7 +1,6 @@
 __copyright__ = "Copyright (C) 2020 Nidhal Baccouri"
 
 import os
-from typing import List, Optional
 
 from deep_translator.base import BaseTranslator
 from deep_translator.constants import OPEN_AI_ENV_VAR
@@ -18,20 +17,28 @@ class ChatGptTranslator(BaseTranslator):
         self,
         source: str = "auto",
         target: str = "english",
-        api_key: Optional[str] = os.getenv(OPEN_AI_ENV_VAR, None),
-        model: Optional[str] = "gpt-4o-mini",
+        api_key: str | None = None,
+        model: str = "gpt-4o-mini",
         **kwargs,
     ):
         """
         @param api_key: your openai api key.
         @param source: source language
         @param target: target language
+        @param model: the OpenAI model to use
         """
+        if api_key is None:
+            api_key = os.getenv(OPEN_AI_ENV_VAR)
+
         if not api_key:
             raise ApiKeyException(env_var=OPEN_AI_ENV_VAR)
 
         self.api_key = api_key
         self.model = model
+
+        import openai
+
+        self._client = openai.OpenAI(api_key=self.api_key)
 
         super().__init__(source=source, target=target, **kwargs)
 
@@ -40,14 +47,10 @@ class ChatGptTranslator(BaseTranslator):
         @param text: text to translate
         @return: translated text
         """
-        import openai
-
-        client = openai.OpenAI(api_key=self.api_key)
-
         prompt = f"Translate the text below into {self.target}.\n"
         prompt += f'Text: "{text}"'
 
-        response = client.chat.completions.create(
+        response = self._client.chat.completions.create(
             model=self.model,
             messages=[
                 {
@@ -58,13 +61,3 @@ class ChatGptTranslator(BaseTranslator):
         )
 
         return response.choices[0].message.content
-
-    def translate_file(self, path: str, **kwargs) -> str:
-        return self._translate_file(path, **kwargs)
-
-    def translate_batch(self, batch: List[str], **kwargs) -> List[str]:
-        """
-        @param batch: list of texts to translate
-        @return: list of translations
-        """
-        return self._translate_batch(batch, **kwargs)

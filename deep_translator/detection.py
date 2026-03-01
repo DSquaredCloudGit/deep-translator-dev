@@ -1,26 +1,23 @@
-"""
-language detection API
-"""
+"""Language detection API"""
 
 __copyright__ = "Copyright (C) 2020 Nidhal Baccouri"
 
-from typing import List, Optional, Union
+import logging
 
 import requests
 from requests.exceptions import HTTPError
 
-# Module global config
-config = {
-    "url": "https://ws.detectlanguage.com/0.2/detect",
-    "headers": {
-        "User-Agent": "Detect Language API Python Client 1.4.0",
-        "Authorization": "Bearer {}",
-    },
-}
+from deep_translator.constants import DEFAULT_TIMEOUT
+from deep_translator.exceptions import ApiKeyException, NotValidPayload
+
+logger = logging.getLogger(__name__)
+
+_DETECT_URL = "https://ws.detectlanguage.com/0.2/detect"
+_USER_AGENT = "Detect Language API Python Client 1.4.0"
 
 
 def get_request_body(
-    text: Union[str, List[str]], api_key: str, *args, **kwargs
+    text: str | list[str], api_key: str, *args, **kwargs
 ):
     """
     send a request and return the response body parsed as dictionary
@@ -29,38 +26,39 @@ def get_request_body(
     @type text: str
     @type api_key: str
     @param api_key: your private API key
-
     """
     if not api_key:
-        raise Exception(
-            "you need to get an API_KEY for this to work. "
-            "Get one for free here: https://detectlanguage.com/documentation"
+        raise ApiKeyException(
+            env_var="DETECTLANGUAGE_API_KEY",
         )
     if not text:
-        raise Exception("Please provide an input text")
+        raise NotValidPayload(text)
 
-    else:
-        try:
-            headers = config["headers"]
-            headers["Authorization"] = headers["Authorization"].format(api_key)
-            response = requests.post(
-                config["url"], json={"q": text}, headers=headers
-            )
+    try:
+        headers = {
+            "User-Agent": _USER_AGENT,
+            "Authorization": f"Bearer {api_key}",
+        }
+        response = requests.post(
+            _DETECT_URL,
+            json={"q": text},
+            headers=headers,
+            timeout=DEFAULT_TIMEOUT,
+        )
+        body = response.json().get("data")
+        return body
 
-            body = response.json().get("data")
-            return body
-
-        except HTTPError as e:
-            print("Error occured while requesting from server: ", e.args)
-            raise e
+    except HTTPError as e:
+        logger.error("Error occurred while requesting from server: %s", e)
+        raise
 
 
 def single_detection(
     text: str,
-    api_key: Optional[str] = None,
+    api_key: str | None = None,
     detailed: bool = False,
     *args,
-    **kwargs
+    **kwargs,
 ):
     """
     function responsible for detecting the language from a text
@@ -83,7 +81,11 @@ def single_detection(
 
 
 def batch_detection(
-    text_list: List[str], api_key: str, detailed: bool = False, *args, **kwargs
+    text_list: list[str],
+    api_key: str,
+    detailed: bool = False,
+    *args,
+    **kwargs,
 ):
     """
     function responsible for detecting the language from a text
@@ -98,5 +100,4 @@ def batch_detection(
     res = [obj[0] for obj in detections]
     if detailed:
         return res
-    else:
-        return [obj["language"] for obj in res]
+    return [obj["language"] for obj in res]

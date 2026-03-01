@@ -1,17 +1,16 @@
-"""
-pons translator API
-"""
+"""PONS translator API"""
 
 __copyright__ = "Copyright (C) 2020 Nidhal Baccouri"
 
-from typing import List, Optional, Union
-
-import requests
 from bs4 import BeautifulSoup
 from requests.utils import requote_uri
 
 from deep_translator.base import BaseTranslator
-from deep_translator.constants import BASE_URLS, PONS_CODES_TO_LANGUAGES
+from deep_translator.constants import (
+    BASE_URLS,
+    DEFAULT_TIMEOUT,
+    PONS_CODES_TO_LANGUAGES,
+)
 from deep_translator.exceptions import (
     ElementNotFoundInGetRequest,
     NotValidPayload,
@@ -31,7 +30,7 @@ class PonsTranslator(BaseTranslator):
         self,
         source: str,
         target: str = "en",
-        proxies: Optional[dict] = None,
+        proxies: dict | None = None,
         **kwargs,
     ):
         """
@@ -52,12 +51,12 @@ class PonsTranslator(BaseTranslator):
 
     def translate(
         self, word: str, return_all: bool = False, **kwargs
-    ) -> Union[str, List[str]]:
+    ) -> str | list[str]:
         """
         function that uses PONS to translate a word
         @param word: word to translate
         @type word: str
-        @param return_all: set to True to return all synonym of the translated word
+        @param return_all: set to True to return all synonyms of the translated word
         @type return_all: bool
         @return: str: translated word
         """
@@ -66,7 +65,10 @@ class PonsTranslator(BaseTranslator):
                 return word
             url = f"{self._base_url}{self._source}-{self._target}/{word}"
             url = requote_uri(url)
-            response = requests.get(url, proxies=self.proxies)
+            session = self._get_session()
+            response = session.get(
+                url, proxies=self.proxies, timeout=DEFAULT_TIMEOUT
+            )
 
             if response.status_code == 429:
                 raise TooManyRequests()
@@ -78,23 +80,20 @@ class PonsTranslator(BaseTranslator):
             elements = soup.find("div", {"class": "result_list"}).findAll(
                 self._element_tag, self._element_query
             )
-            response.close()
 
             if not elements:
                 raise ElementNotFoundInGetRequest(word)
 
             filtered_elements = []
             for el in elements:
-                temp = []
-                for e in el.findAll("a"):
-                    temp.append(e.get_text())
+                temp = [e.get_text() for e in el.findAll("a")]
                 filtered_elements.append(" ".join(temp))
 
             if not filtered_elements:
                 raise ElementNotFoundInGetRequest(word)
 
             word_list = [
-                word for word in filtered_elements if word and len(word) > 1
+                w for w in filtered_elements if w and len(w) > 1
             ]
 
             if not word_list:
@@ -102,7 +101,7 @@ class PonsTranslator(BaseTranslator):
 
             return word_list if return_all else word_list[0]
 
-    def translate_words(self, words: List[str], **kwargs) -> List[str]:
+    def translate_words(self, words: list[str], **kwargs) -> list[str]:
         """
         translate a batch of words together by providing them in a list
         @param words: list of words you want to translate
@@ -112,7 +111,4 @@ class PonsTranslator(BaseTranslator):
         if not words:
             raise NotValidPayload(words)
 
-        translated_words = []
-        for word in words:
-            translated_words.append(self.translate(word=word, **kwargs))
-        return translated_words
+        return [self.translate(word=word, **kwargs) for word in words]

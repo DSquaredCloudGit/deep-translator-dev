@@ -5,7 +5,6 @@ __copyright__ = "Copyright (C) 2020 Nidhal Baccouri"
 import logging
 import os
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
 
 from deep_translator.base import BaseTranslator
 from deep_translator.constants import (
@@ -15,6 +14,7 @@ from deep_translator.constants import (
 from deep_translator.exceptions import (
     ModelDownloadException,
     ModelNotAvailableException,
+    NotValidPayload,
 )
 
 logger = logging.getLogger(__name__)
@@ -41,13 +41,13 @@ class EunoiaTranslator(BaseTranslator):
         pip install deep-translator[onnx]
     """
 
-    _model_cache: Dict[str, Tuple] = {}
+    _model_cache: dict[str, tuple] = {}
 
     def __init__(
         self,
         source: str = "english",
         target: str = "german",
-        model_cache_dir: Optional[str] = None,
+        model_cache_dir: str | None = None,
         quantization: str = "int8",
         max_length: int = 512,
         **kwargs,
@@ -90,7 +90,7 @@ class EunoiaTranslator(BaseTranslator):
 
     def _resolve_model_id(
         self, src_code: str, tgt_code: str
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Resolve the Hugging Face model ID for a given language pair.
         Tries direct pair first, then multi-target group models.
@@ -212,7 +212,7 @@ class EunoiaTranslator(BaseTranslator):
 
     def _load_model(
         self, model_id: str
-    ) -> Tuple:
+    ) -> tuple:
         """
         Load or download and convert an OPUS-MT model to ONNX format.
         Applies quantization if configured.
@@ -424,15 +424,7 @@ class EunoiaTranslator(BaseTranslator):
                 text, self._model, self._tokenizer
             )
 
-    def translate_file(self, path: str, **kwargs) -> str:
-        """
-        translate from a file
-        @param path: path to the target file
-        @return: translated text
-        """
-        return self._translate_file(path, **kwargs)
-
-    def translate_batch(self, batch: List[str], **kwargs) -> List[str]:
+    def translate_batch(self, batch: list[str], **kwargs) -> list[str]:
         """
         Translate a batch of texts. Uses batched inference for efficiency
         when not pivoting through English.
@@ -441,9 +433,7 @@ class EunoiaTranslator(BaseTranslator):
         @return: list of translations
         """
         if not batch:
-            raise Exception(
-                "Enter your text list that you want to translate"
-            )
+            raise NotValidPayload(batch)
 
         self._ensure_models_loaded()
 
@@ -479,7 +469,7 @@ class EunoiaTranslator(BaseTranslator):
         logger.info("Model memory cache cleared")
 
     @classmethod
-    def get_cached_models(cls) -> List[str]:
+    def get_cached_models(cls) -> list[str]:
         """
         Get list of model IDs currently loaded in memory cache.
 

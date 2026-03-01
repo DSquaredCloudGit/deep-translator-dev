@@ -1,16 +1,11 @@
-"""
-google translator API
-"""
+"""google translator API"""
 
 __copyright__ = "Copyright (C) 2020 Nidhal Baccouri"
 
-from typing import List, Optional
-
-import requests
 from bs4 import BeautifulSoup
 
 from deep_translator.base import BaseTranslator
-from deep_translator.constants import BASE_URLS
+from deep_translator.constants import BASE_URLS, DEFAULT_TIMEOUT
 from deep_translator.exceptions import (
     RequestError,
     TooManyRequests,
@@ -28,8 +23,8 @@ class GoogleTranslator(BaseTranslator):
         self,
         source: str = "auto",
         target: str = "en",
-        proxies: Optional[dict] = None,
-        **kwargs
+        proxies: dict | None = None,
+        **kwargs,
     ):
         """
         @param source: source language to translate from
@@ -42,8 +37,8 @@ class GoogleTranslator(BaseTranslator):
             target=target,
             element_tag="div",
             element_query={"class": "t0"},
-            payload_key="q",  # key of text in the url
-            **kwargs
+            payload_key="q",
+            **kwargs,
         )
 
         self._alt_element_query = {"class": "result-container"}
@@ -64,8 +59,12 @@ class GoogleTranslator(BaseTranslator):
             if self.payload_key:
                 self._url_params[self.payload_key] = text
 
-            response = requests.get(
-                self._base_url, params=self._url_params, proxies=self.proxies
+            session = self._get_session()
+            response = session.get(
+                self._base_url,
+                params=self._url_params,
+                proxies=self.proxies,
+                timeout=DEFAULT_TIMEOUT,
             )
             if response.status_code == 429:
                 raise TooManyRequests()
@@ -76,7 +75,6 @@ class GoogleTranslator(BaseTranslator):
             soup = BeautifulSoup(response.text, "html.parser")
 
             element = soup.find(self._element_tag, self._element_query)
-            response.close()
 
             if not element:
                 element = soup.find(self._element_tag, self._alt_element_query)
@@ -102,21 +100,3 @@ class GoogleTranslator(BaseTranslator):
 
             else:
                 return element.get_text(strip=True)
-
-    def translate_file(self, path: str, **kwargs) -> str:
-        """
-        translate directly from file
-        @param path: path to the target file
-        @type path: str
-        @param kwargs: additional args
-        @return: str
-        """
-        return self._translate_file(path, **kwargs)
-
-    def translate_batch(self, batch: List[str], **kwargs) -> List[str]:
-        """
-        translate a list of texts
-        @param batch: list of texts you want to translate
-        @return: list of translations
-        """
-        return self._translate_batch(batch, **kwargs)

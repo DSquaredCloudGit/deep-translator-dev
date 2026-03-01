@@ -1,40 +1,44 @@
-"""
-papago translator API
-"""
+"""Papago translator API"""
 
 __copyright__ = "Copyright (C) 2020 Nidhal Baccouri"
 
-import json
-from typing import List, Optional
-
-import requests
-
 from deep_translator.base import BaseTranslator
-from deep_translator.constants import BASE_URLS, PAPAGO_LANGUAGE_TO_CODE
-from deep_translator.exceptions import TranslationNotFound
+from deep_translator.constants import (
+    BASE_URLS,
+    DEFAULT_TIMEOUT,
+    PAPAGO_LANGUAGE_TO_CODE,
+)
+from deep_translator.exceptions import (
+    ApiKeyException,
+    ServerException,
+    TranslationNotFound,
+)
 from deep_translator.validate import is_input_valid, request_failed
 
 
 class PapagoTranslator(BaseTranslator):
     """
-    class that wraps functions, which use google translate under the hood to translate text(s)
+    class that wraps functions, which use Naver Papago
+    under the hood to translate text(s)
     """
 
     def __init__(
         self,
-        client_id: Optional[str] = None,
-        secret_key: Optional[str] = None,
+        client_id: str | None = None,
+        secret_key: str | None = None,
         source: str = "auto",
         target: str = "en",
         **kwargs,
     ):
         """
+        @param client_id: your Naver Papago client ID
+        @param secret_key: your Naver Papago secret key
         @param source: source language to translate from
         @param target: target language to translate to
         """
         if not client_id or not secret_key:
-            raise Exception(
-                "Please pass your client id and secret key! visit the papago website for more infos"
+            raise ApiKeyException(
+                env_var="PAPAGO_CLIENT_ID / PAPAGO_SECRET_KEY"
             )
 
         self.client_id = client_id
@@ -49,7 +53,7 @@ class PapagoTranslator(BaseTranslator):
 
     def translate(self, text: str, **kwargs) -> str:
         """
-        function that uses google translate to translate a text
+        Translate text using Naver Papago.
         @param text: desired text to translate
         @return: str: translated text
         """
@@ -64,14 +68,16 @@ class PapagoTranslator(BaseTranslator):
                 "X-Naver-Client-Secret": self.secret_key,
                 "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
             }
-            response = requests.post(
-                self._base_url, headers=headers, data=payload
+            session = self._get_session()
+            response = session.post(
+                self._base_url,
+                headers=headers,
+                data=payload,
+                timeout=DEFAULT_TIMEOUT,
             )
             if request_failed(status_code=response.status_code):
-                raise Exception(
-                    f"Translation error! -> status code: {response.status_code}"
-                )
-            res_body = json.loads(response.text)
+                raise ServerException(response.status_code)
+            res_body = response.json()
             if "message" not in res_body:
                 raise TranslationNotFound(text)
 
@@ -79,23 +85,4 @@ class PapagoTranslator(BaseTranslator):
             result = msg.get("result", None)
             if not result:
                 raise TranslationNotFound(text)
-            translated_text = result.get("translatedText")
-            return translated_text
-
-    def translate_file(self, path: str, **kwargs) -> str:
-        """
-        translate directly from file
-        @param path: path to the target file
-        @type path: str
-        @param kwargs: additional args
-        @return: str
-        """
-        return self._translate_file(path, **kwargs)
-
-    def translate_batch(self, batch: List[str], **kwargs) -> List[str]:
-        """
-        translate a list of texts
-        @param batch: list of texts you want to translate
-        @return: list of translations
-        """
-        return self._translate_batch(batch, **kwargs)
+            return result.get("translatedText")

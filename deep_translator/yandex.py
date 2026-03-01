@@ -1,16 +1,11 @@
-"""
-Yandex translator API
-"""
+"""Yandex translator API"""
 
 __copyright__ = "Copyright (C) 2020 Nidhal Baccouri"
 
 import os
-from typing import List, Optional
-
-import requests
 
 from deep_translator.base import BaseTranslator
-from deep_translator.constants import BASE_URLS, YANDEX_ENV_VAR
+from deep_translator.constants import BASE_URLS, DEFAULT_TIMEOUT, YANDEX_ENV_VAR
 from deep_translator.exceptions import (
     ApiKeyException,
     RequestError,
@@ -31,12 +26,15 @@ class YandexTranslator(BaseTranslator):
         self,
         source: str = "en",
         target: str = "de",
-        api_key: Optional[str] = os.getenv(YANDEX_ENV_VAR, None),
-        **kwargs
+        api_key: str | None = None,
+        **kwargs,
     ):
         """
         @param api_key: your yandex api key
         """
+        if api_key is None:
+            api_key = os.getenv(YANDEX_ENV_VAR)
+
         if not api_key:
             raise ApiKeyException(YANDEX_ENV_VAR)
         self.api_key = api_key
@@ -50,7 +48,7 @@ class YandexTranslator(BaseTranslator):
             base_url=BASE_URLS.get("YANDEX"),
             source=source,
             target=target,
-            **kwargs
+            **kwargs,
         )
 
     def _get_supported_languages(self):
@@ -61,16 +59,19 @@ class YandexTranslator(BaseTranslator):
         return self.get_supported_languages()
 
     @property
-    def dirs(self, proxies: Optional[dict] = None):
+    def dirs(self, proxies: dict | None = None):
         try:
             url = self._base_url.format(
                 version=self.api_version, endpoint="getLangs"
             )
-            print("url: ", url)
-            response = requests.get(
-                url, params={"key": self.api_key}, proxies=proxies
+            session = self._get_session()
+            response = session.get(
+                url,
+                params={"key": self.api_key},
+                proxies=proxies,
+                timeout=DEFAULT_TIMEOUT,
             )
-        except requests.exceptions.ConnectionError:
+        except ConnectionError:
             raise ServerException(503)
         else:
             data = response.json()
@@ -79,7 +80,7 @@ class YandexTranslator(BaseTranslator):
             raise ServerException(response.status_code)
         return data.get("dirs")
 
-    def detect(self, text: str, proxies: Optional[dict] = None):
+    def detect(self, text: str, proxies: dict | None = None):
         response = None
         params = {
             "text": text,
@@ -90,8 +91,10 @@ class YandexTranslator(BaseTranslator):
             url = self._base_url.format(
                 version=self.api_version, endpoint="detect"
             )
-            response = requests.post(url, data=params, proxies=proxies)
-
+            session = self._get_session()
+            response = session.post(
+                url, data=params, proxies=proxies, timeout=DEFAULT_TIMEOUT
+            )
         except RequestError:
             raise
         except ConnectionError:
@@ -109,7 +112,7 @@ class YandexTranslator(BaseTranslator):
         return language
 
     def translate(
-        self, text: str, proxies: Optional[dict] = None, **kwargs
+        self, text: str, proxies: dict | None = None, **kwargs
     ) -> str:
         if is_input_valid(text):
             params = {
@@ -117,14 +120,17 @@ class YandexTranslator(BaseTranslator):
                 "format": "plain",
                 "lang": self._target
                 if self._source == "auto"
-                else "{}-{}".format(self._source, self._target),
+                else f"{self._source}-{self._target}",
                 "key": self.api_key,
             }
             try:
                 url = self._base_url.format(
                     version=self.api_version, endpoint="translate"
                 )
-                response = requests.post(url, data=params, proxies=proxies)
+                session = self._get_session()
+                response = session.post(
+                    url, data=params, proxies=proxies, timeout=DEFAULT_TIMEOUT
+                )
             except ConnectionError:
                 raise ServerException(503)
             else:
@@ -140,19 +146,3 @@ class YandexTranslator(BaseTranslator):
                 raise TranslationNotFound()
 
             return response["text"]
-
-    def translate_file(self, path: str, **kwargs) -> str:
-        """
-        translate from a file
-        @param path: path to file
-        @return: translated text
-        """
-        return self._translate_file(path, **kwargs)
-
-    def translate_batch(self, batch: List[str], **kwargs) -> List[str]:
-        """
-        translate a batch of texts
-        @param batch: list of texts to translate
-        @return: list of translations
-        """
-        return self._translate_batch(batch, **kwargs)

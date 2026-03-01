@@ -1,7 +1,6 @@
 __copyright__ = "Copyright (C) 2020 Nidhal Baccouri"
 
 import os
-from typing import List, Optional
 
 from deep_translator.base import BaseTranslator
 from deep_translator.constants import GEMINI_ENV_VAR
@@ -18,8 +17,8 @@ class GeminiTranslator(BaseTranslator):
         self,
         source: str = "auto",
         target: str = "english",
-        api_key: Optional[str] = os.getenv(GEMINI_ENV_VAR, None),
-        model: Optional[str] = "gemini-2.0-flash",
+        api_key: str | None = None,
+        model: str = "gemini-2.0-flash",
         **kwargs,
     ):
         """
@@ -28,11 +27,19 @@ class GeminiTranslator(BaseTranslator):
         @param target: target language to translate to
         @param model: the Gemini model to use
         """
+        if api_key is None:
+            api_key = os.getenv(GEMINI_ENV_VAR)
+
         if not api_key:
             raise ApiKeyException(env_var=GEMINI_ENV_VAR)
 
         self.api_key = api_key
         self.model = model
+
+        import google.generativeai as genai
+
+        genai.configure(api_key=self.api_key)
+        self._genai_model = genai.GenerativeModel(self.model)
 
         super().__init__(source=source, target=target, **kwargs)
 
@@ -41,12 +48,6 @@ class GeminiTranslator(BaseTranslator):
         @param text: text to translate
         @return: translated text
         """
-        import google.generativeai as genai
-
-        genai.configure(api_key=self.api_key)
-
-        model = genai.GenerativeModel(self.model)
-
         prompt = (
             f"Translate the following text from {self.source} to "
             f"{self.target}. Return ONLY the translated text, "
@@ -54,21 +55,6 @@ class GeminiTranslator(BaseTranslator):
             f'Text: "{text}"'
         )
 
-        response = model.generate_content(prompt)
+        response = self._genai_model.generate_content(prompt)
 
         return response.text.strip().strip('"')
-
-    def translate_file(self, path: str, **kwargs) -> str:
-        """
-        translate from a file
-        @param path: path to the target file
-        @return: translated text
-        """
-        return self._translate_file(path, **kwargs)
-
-    def translate_batch(self, batch: List[str], **kwargs) -> List[str]:
-        """
-        @param batch: list of texts to translate
-        @return: list of translations
-        """
-        return self._translate_batch(batch, **kwargs)

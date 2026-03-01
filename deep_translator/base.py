@@ -4,29 +4,32 @@ __copyright__ = "Copyright (C) 2020 Nidhal Baccouri"
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List, Optional, Union
 
-from deep_translator.constants import GOOGLE_LANGUAGES_TO_CODES
+import requests
+
+from deep_translator.constants import DEFAULT_TIMEOUT, GOOGLE_LANGUAGES_TO_CODES
 from deep_translator.exceptions import (
     InvalidSourceOrTargetLanguage,
     LanguageNotSupportedException,
+    NotValidPayload,
 )
+from deep_translator.validate import is_empty, is_input_valid
 
 
 class BaseTranslator(ABC):
     """
-    Abstract class that serve as a base translator for other different translators
+    Abstract class that serves as a base translator for other different translators.
     """
 
     def __init__(
         self,
-        base_url: str = None,
+        base_url: str | None = None,
         languages: dict = GOOGLE_LANGUAGES_TO_CODES,
         source: str = "auto",
         target: str = "en",
-        payload_key: Optional[str] = None,
-        element_tag: Optional[str] = None,
-        element_query: Optional[dict] = None,
+        payload_key: str | None = None,
+        element_tag: str | None = None,
+        element_query: dict | None = None,
         **url_params,
     ):
         """
@@ -46,94 +49,147 @@ class BaseTranslator(ABC):
         self._element_tag = element_tag
         self._element_query = element_query
         self.payload_key = payload_key
+
+        # HTTP session for connection pooling (used by HTTP-based translators)
+        self._session: requests.Session | None = None
+
         super().__init__()
 
+    # ------------------------------------------------------------------ #
+    #  Context manager support                                            #
+    # ------------------------------------------------------------------ #
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+        return False
+
+    def close(self) -> None:
+        """Close the underlying HTTP session, if any."""
+        if self._session is not None:
+            self._session.close()
+            self._session = None
+
+    # ------------------------------------------------------------------ #
+    #  HTTP session (lazy-created)                                        #
+    # ------------------------------------------------------------------ #
+
+    def _get_session(self) -> requests.Session:
+        """Return the shared requests.Session, creating it on first use."""
+        if self._session is None:
+            self._session = requests.Session()
+        return self._session
+
+    # ------------------------------------------------------------------ #
+    #  Properties                                                         #
+    # ------------------------------------------------------------------ #
+
     @property
-    def source(self):
+    def source(self) -> str:
         return self._source
 
     @source.setter
-    def source(self, lang):
+    def source(self, lang: str) -> None:
         self._source = lang
 
     @property
-    def target(self):
+    def target(self) -> str:
         return self._target
 
     @target.setter
-    def target(self, lang):
+    def target(self, lang: str) -> None:
         self._target = lang
 
-    def _type(self):
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(source='{self._source}', target='{self._target}')"
+
+    def _type(self) -> str:
         return self.__class__.__name__
 
-    def _map_language_to_code(self, *languages):
+    def _map_language_to_code(self, *languages: str) -> tuple[str, ...]:
         """
-        map language to its corresponding code (abbreviation) if the language was passed
-        by its full name by the user
+        Map language to its corresponding code (abbreviation) if the language
+        was passed by its full name by the user.
+
         @param languages: list of languages
-        @return: mapped value of the language or raise an exception if the language is
-        not supported
+        @return: tuple of mapped language codes
         """
+        result: list[str] = []
         for language in languages:
             if language in self._languages.values() or language == "auto":
-                yield language
+                result.append(language)
             elif language in self._languages.keys():
-                yield self._languages[language]
+                result.append(self._languages[language])
             else:
                 raise LanguageNotSupportedException(
                     language,
                     message=f"No support for the provided language.\n"
-                    f"Please select on of the supported languages:\n"
+                    f"Please select one of the supported languages:\n"
                     f"{self._languages}",
                 )
+        return tuple(result)
 
     def _same_source_target(self) -> bool:
         return self._source == self._target
 
+    def _pre_translate_check(
+        self, text: str, max_chars: int | None = None
+    ) -> str | None:
+        """
+        Common pre-translation validation.
+        Returns the text unchanged if source == target or text is empty,
+        or None if translation should proceed.
+        Raises on invalid input.
+        """
+        if is_input_valid(text, max_chars=max_chars):
+            text = text.strip()
+            if self._same_source_target() or is_empty(text):
+                return text
+        return None
+
     def get_supported_languages(
         self, as_dict: bool = False, **kwargs
-    ) -> Union[list, dict]:
+    ) -> list | dict:
         """
-        return the supported languages by the Google translator
-        @param as_dict: if True, the languages will be returned as a dictionary
-        mapping languages to their abbreviations
+        Return the supported languages by this translator.
+
+        @param as_dict: if True, return a dictionary mapping languages to codes
         @return: list or dict
         """
         return self._supported_languages if not as_dict else self._languages
 
     def is_language_supported(self, language: str, **kwargs) -> bool:
         """
-        check if the language is supported by the translator
+        Check if the language is supported by the translator.
+
         @param language: a string for 1 language
-        @return: bool or raise an Exception
+        @return: bool
         """
-        if (
+        return (
             language == "auto"
             or language in self._languages.keys()
             or language in self._languages.values()
-        ):
-            return True
-        else:
-            return False
+        )
 
     @abstractmethod
     def translate(self, text: str, **kwargs) -> str:
         """
-        translate a text using a translator under the hood and return
-        the translated text
+        Translate a text using the translator and return the translated text.
+
         @param text: text to translate
         @param kwargs: additional arguments
         @return: str
         """
-        return NotImplemented("You need to implement the translate method!")
+        raise NotImplementedError("You need to implement the translate method!")
 
-    def _read_docx(self, f: str):
+    def _read_docx(self, f: str) -> str:
         import docx2txt
 
         return docx2txt.process(f)
 
-    def _read_pdf(self, f: str):
+    def _read_pdf(self, f: str) -> str:
         import pypdf
 
         reader = pypdf.PdfReader(f)
@@ -142,24 +198,21 @@ class BaseTranslator(ABC):
 
     def _translate_file(self, path: str, **kwargs) -> str:
         """
-        translate directly from file
+        Translate directly from file.
+
         @param path: path to the target file
-        @type path: str
-        @param kwargs: additional args
-        @return: str
+        @return: translated text
         """
         if not isinstance(path, Path):
             path = Path(path)
 
         if not path.exists():
-            print("Path to the file is wrong!")
-            exit(1)
+            raise FileNotFoundError(f"File not found: {path}")
 
         ext = path.suffix
 
         if ext == ".docx":
             text = self._read_docx(f=str(path))
-
         elif ext == ".pdf":
             text = self._read_pdf(f=str(path))
         else:
@@ -168,16 +221,33 @@ class BaseTranslator(ABC):
 
         return self.translate(text)
 
-    def _translate_batch(self, batch: List[str], **kwargs) -> List[str]:
+    def translate_file(self, path: str, **kwargs) -> str:
         """
-        translate a list of texts
+        Translate directly from file.
+
+        @param path: path to the target file
+        @return: translated text
+        """
+        return self._translate_file(path, **kwargs)
+
+    def _translate_batch(self, batch: list[str], **kwargs) -> list[str]:
+        """
+        Translate a list of texts.
+
         @param batch: list of texts you want to translate
         @return: list of translations
         """
         if not batch:
-            raise Exception("Enter your text list that you want to translate")
-        arr = []
-        for i, text in enumerate(batch):
-            translated = self.translate(text, **kwargs)
-            arr.append(translated)
-        return arr
+            raise NotValidPayload(
+                batch, message="Batch must be a non-empty list of strings"
+            )
+        return [self.translate(text, **kwargs) for text in batch]
+
+    def translate_batch(self, batch: list[str], **kwargs) -> list[str]:
+        """
+        Translate a list of texts.
+
+        @param batch: list of texts you want to translate
+        @return: list of translations
+        """
+        return self._translate_batch(batch, **kwargs)

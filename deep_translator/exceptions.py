@@ -16,7 +16,7 @@ class BaseError(Exception):
         super().__init__()
 
     def __str__(self):
-        return "{} --> {}".format(self.val, self.message)
+        return f"{self.val} --> {self.message}"
 
 
 class LanguageNotSupportedException(BaseError):
@@ -42,7 +42,7 @@ class NotValidPayload(BaseError):
         message="text must be a valid text with maximum 5000 character,"
         "otherwise it cannot be translated",
     ):
-        super(NotValidPayload, self).__init__(val, message)
+        super().__init__(val, message)
 
 
 class InvalidSourceOrTargetLanguage(BaseError):
@@ -51,7 +51,7 @@ class InvalidSourceOrTargetLanguage(BaseError):
     """
 
     def __init__(self, val, message="Invalid source or target language!"):
-        super(InvalidSourceOrTargetLanguage, self).__init__(val, message)
+        super().__init__(val, message)
 
 
 class TranslationNotFound(BaseError):
@@ -64,7 +64,7 @@ class TranslationNotFound(BaseError):
         val,
         message="No translation was found using the current translator. Try another translator?",
     ):
-        super(TranslationNotFound, self).__init__(val, message)
+        super().__init__(val, message)
 
 
 class ElementNotFoundInGetRequest(BaseError):
@@ -75,7 +75,7 @@ class ElementNotFoundInGetRequest(BaseError):
     def __init__(
         self, val, message="Required element was not found in the API response"
     ):
-        super(ElementNotFoundInGetRequest, self).__init__(val, message)
+        super().__init__(val, message)
 
 
 class NotValidLength(BaseError):
@@ -85,7 +85,7 @@ class NotValidLength(BaseError):
 
     def __init__(self, val, min_chars, max_chars):
         message = f"Text length need to be between {min_chars} and {max_chars} characters"
-        super(NotValidLength, self).__init__(val, message)
+        super().__init__(val, message)
 
 
 class RequestError(Exception):
@@ -114,7 +114,7 @@ class MicrosoftAPIerror(Exception):
         self.message = "Microsoft API returned the following error"
 
     def __str__(self):
-        return "{}: {}".format(self.message, self.api_message)
+        return f"{self.message}: {self.api_message}"
 
 
 class TooManyRequests(Exception):
@@ -151,12 +151,12 @@ class ServerException(Exception):
         422: "ERR_UNPROCESSABLE_TEXT",
         500: "ERR_INTERNAL_SERVER_ERROR",
         501: "ERR_LANG_NOT_SUPPORTED",
-        503: "ERR_SERVICE_NOT_AVAIBLE",
+        503: "ERR_SERVICE_NOT_AVAILABLE",
     }
 
     def __init__(self, status_code, *args):
         message = self.errors.get(status_code, "API server error")
-        super(ServerException, self).__init__(message, *args)
+        super().__init__(message, *args)
 
 
 class ApiKeyException(BaseError):
@@ -178,7 +178,8 @@ Example: export {env_var}="your_api_key"
 
 class AuthorizationException(Exception):
     def __init__(self, api_key, *args):
-        msg = "Unauthorized access with the api key " + api_key
+        masked = f"...{api_key[-4:]}" if api_key and len(api_key) >= 4 else "***"
+        msg = f"Unauthorized access with api key {masked}"
         super().__init__(msg, *args)
 
 
@@ -192,7 +193,7 @@ class TencentAPIerror(Exception):
         self.message = "Tencent API returned the following error"
 
     def __str__(self):
-        return "{}: {}".format(self.message, self.api_message)
+        return f"{self.message}: {self.api_message}"
 
 
 class BaiduAPIerror(Exception):
@@ -205,7 +206,7 @@ class BaiduAPIerror(Exception):
         self.message = "Baidu API returned the following error"
 
     def __str__(self):
-        return "{}: {}".format(self.message, self.api_message)
+        return f"{self.message}: {self.api_message}"
 
 
 class ModelDownloadException(BaseError):

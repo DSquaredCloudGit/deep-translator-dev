@@ -14,13 +14,16 @@ BAIDU_APPKEY_ENV_VAR = "BAIDU_APPKEY"
 GEMINI_ENV_VAR = "GEMINI_API_KEY"
 ANTHROPIC_ENV_VAR = "ANTHROPIC_API_KEY"
 
+# Default timeout for all HTTP requests: (connect_seconds, read_seconds)
+DEFAULT_TIMEOUT: tuple[float, float] = (5, 30)
+
 
 BASE_URLS = {
     "GOOGLE_TRANSLATE": "https://translate.google.com/m",
     "PONS": "https://en.pons.com/translate/",
     "YANDEX": "https://translate.yandex.net/api/{version}/tr.json/{endpoint}",
     "LINGUEE": "https://www.linguee.com/",
-    "MYMEMORY": "http://api.mymemory.translated.net/get",
+    "MYMEMORY": "https://api.mymemory.translated.net/get",
     "QCRI": "https://mt.qcri.org/api/v1/{endpoint}?",
     "DEEPL": "https://api.deepl.com/{version}/",
     "DEEPL_FREE": "https://api-free.deepl.com/{version}/",
@@ -29,7 +32,7 @@ BASE_URLS = {
     "PAPAGO_API": "https://openapi.naver.com/v1/papago/n2mt",
     "LIBRE": "https://libretranslate.com/",
     "LIBRE_FREE": "https://libretranslate.de/",
-    "TENENT": "https://tmt.tencentcloudapi.com",
+    "TENCENT": "https://tmt.tencentcloudapi.com",
     "BAIDU": "https://fanyi-api.baidu.com/api/trans/vip/translate",
 }
 
